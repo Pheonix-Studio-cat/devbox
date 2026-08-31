@@ -430,3 +430,103 @@ kbd {
     grid-template-columns: 1fr;
   }
 }
+
+/* Image tools */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 22px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  font-family: var(--sans);
+  text-align: center;
+  cursor: pointer;
+}
+
+.dropzone:hover,
+.dropzone.over {
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+.dropzone:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.preview:not(:empty) {
+  margin-top: 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.preview canvas,
+.svg-preview {
+  max-width: 100%;
+  max-height: 260px;
+  height: auto;
+  border-radius: 6px;
+  /* A chequerboard so transparency reads as transparency, not as white. */
+  background-color: var(--bg-raised);
+  background-image:
+    linear-gradient(45deg, var(--bg-sunken) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--bg-sunken) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--bg-sunken) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--bg-sunken) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+.output .svg-preview {
+  display: block;
+  margin: 0 auto 12px;
+}
+
+.source {
+  margin: 10px 0 0;
+  padding: 10px;
+  max-height: 200px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  font-size: 12px;
+}
+
+.download {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 7px 13px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.pane-actions.spread {
+  justify-content: flex-start;
+}
+
+/* Colour swatch */
+.swatch {
+  height: 56px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+}
+
+.field.checkbox {
+  gap: 5px;
+}
+
+.field.checkbox input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+}
