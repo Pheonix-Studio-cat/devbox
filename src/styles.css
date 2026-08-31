@@ -17,8 +17,11 @@
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/* Dark is the base palette above. Light applies when the OS asks for it,
+   unless a host has pinned dark on the root element — and a host that pins
+   light explicitly wins over a dark OS setting. */
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme="dark"]) {
     --bg: #f4f6fa;
     --bg-raised: #ffffff;
     --bg-sunken: #eef1f6;
@@ -31,6 +34,20 @@
     --good: #14803c;
     --danger: #c62b21;
   }
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f6fa;
+  --bg-raised: #ffffff;
+  --bg-sunken: #eef1f6;
+  --border: #d6dbe4;
+  --border-strong: #b9c1ce;
+  --text: #16202c;
+  --text-muted: #5b6675;
+  --accent: #0b62d6;
+  --accent-contrast: #ffffff;
+  --good: #14803c;
+  --danger: #c62b21;
 }
 
 * {
