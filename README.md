@@ -1,8 +1,8 @@
 # Devbox
 
-Everyday developer tools that run entirely in your browser tab. JSON, Base64,
-URLs, JWTs, hashes, UUIDs and timestamps — computed locally, with no server
-involved.
+Everyday developer tools that run entirely in your browser tab. JSON, CSV,
+Base64, URLs, JWTs, hashes, UUIDs, timestamps, colours, number bases and image
+conversion — computed locally, with no server involved.
 
 ![Devbox](docs/screenshot.png)
 
@@ -28,6 +28,14 @@ static files.
 | **Hashes** | SHA-1, SHA-256, SHA-384 and SHA-512 via the Web Crypto API, individually or all at once. |
 | **UUID & tokens** | Version 4 UUIDs and random secrets in hex, base64url or alphanumeric, drawn from the platform CSPRNG. |
 | **Timestamps** | Unix seconds, Unix milliseconds and ISO 8601 in both directions, plus local time and a relative description. |
+| **CSV & JSON** | Both directions, with RFC 4180 quoting, delimiter detection, and optional typing of numbers and booleans. |
+| **Colours** | Hex, rgb, hsl and oklch, plus WCAG contrast rated separately against white and black. |
+| **Number bases** | Decimal, hex, binary and octal via BigInt, with the two's-complement reading at 8/16/32/64 bits. |
+| **Image to SVG** | Traces a picture into real vector paths, or wraps it unchanged when that is what you need. |
+| **Image formats** | PNG, JPEG and WebP with a quality setting, resizing, and data-URI output. |
+
+Images are read with the canvas API and never leave the tab either — drop one
+on the panel, or paste it from the clipboard.
 
 `Ctrl`/`Cmd` + `Enter` runs the active tool. Every tool has a deep link
 (`#json`, `#jwt`, …), and each panel keeps what you typed while you switch tabs.
@@ -43,9 +51,18 @@ npm run build      # typecheck + production bundle in dist/
 
 ## Design decisions
 
-**No runtime dependencies.** Everything ships as hand-written TypeScript; the
-whole bundle is roughly 17 kB before compression. `vite`, `typescript` and
-`vitest` are the only packages, and all three are build-time only.
+**No runtime dependencies.** Everything ships as hand-written TypeScript,
+including the colour quantiser and the contour tracer; the whole bundle is
+roughly 38 kB before compression. `vite`, `typescript` and `vitest` are the
+only packages, and all three are build-time only.
+
+**Tracing is not magic.** `src/tools/vectorize.ts` reduces an image to a
+palette, walks the outline of every resulting region along pixel edges, and
+simplifies those outlines with Douglas–Peucker. Flat artwork — logos,
+screenshots, line drawings, diagrams — comes out clean and genuinely scalable.
+A photograph does not: continuous tone has no outlines to find, so it becomes a
+heap of colour blobs. The panel offers "Wrap unchanged" for the cases where
+embedding the picture in an SVG is really what was wanted.
 
 **Nothing you type is persisted.** Only the name of the tool you last used is
 written to `localStorage`, so the app opens where you left off. Inputs are never
