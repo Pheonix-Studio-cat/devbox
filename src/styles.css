@@ -530,3 +530,135 @@ kbd {
   height: 15px;
   accent-color: var(--accent);
 }
+
+/* QR codes */
+.qr-preview {
+  display: block;
+  margin: 0 auto 12px;
+  max-width: 100%;
+  max-height: 260px;
+  image-rendering: pixelated;
+  border-radius: 6px;
+  /* The code needs a light ground of its own to stay scannable in dark mode. */
+  background: #ffffff;
+  padding: 4px;
+}
+
+/* Text comparison */
+.difflines {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: auto;
+}
+
+.diffline {
+  display: grid;
+  grid-template-columns: 3.5em 3.5em 1.2em minmax(0, 1fr);
+  gap: 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre;
+}
+
+.diffline .gutter {
+  padding: 0 6px;
+  text-align: right;
+  color: var(--text-muted);
+  background: var(--bg-raised);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.diffline .sign {
+  text-align: center;
+  user-select: none;
+}
+
+.diffline .text {
+  padding-right: 8px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.diffline.added {
+  background: color-mix(in srgb, var(--good) 16%, transparent);
+}
+
+.diffline.added .sign {
+  color: var(--good);
+}
+
+.diffline.removed {
+  background: color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+.diffline.removed .sign {
+  color: var(--danger);
+}
+
+/* Regex tester */
+.fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.field.wide {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.line-input {
+  font: inherit;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: var(--bg-sunken);
+  color: var(--text);
+}
+
+.line-input.mono {
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.line-input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+textarea.short {
+  min-height: 180px;
+}
+
+.highlight {
+  margin: 0 0 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.highlight mark {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 1px 0;
+}
+
+.matches h4:first-of-type {
+  margin-top: 0;
+}
+
+@media (max-width: 860px) {
+  .fields {
+    grid-template-columns: 1fr;
+  }
+
+  .diffline {
+    grid-template-columns: 2.6em 2.6em 1.2em minmax(0, 1fr);
+  }
+}

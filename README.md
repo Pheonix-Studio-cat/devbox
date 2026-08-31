@@ -1,8 +1,9 @@
 # Devbox
 
-Everyday developer tools that run entirely in your browser tab. JSON, CSV,
-Base64, URLs, JWTs, hashes, UUIDs, timestamps, colours, number bases and image
-conversion — computed locally, with no server involved.
+Everyday developer tools that run entirely in your browser tab. JSON, YAML, CSV,
+Base64, URLs, JWTs, regular expressions, text comparison, hashes, UUIDs,
+timestamps, colours, number bases, QR codes and image conversion — computed
+locally, with no server involved.
 
 ![Devbox](docs/screenshot.png)
 
@@ -33,6 +34,10 @@ static files.
 | **Number bases** | Decimal, hex, binary and octal via BigInt, with the two's-complement reading at 8/16/32/64 bits. |
 | **Image to SVG** | Traces a picture into real vector paths, or wraps it unchanged when that is what you need. |
 | **Image formats** | PNG, JPEG and WebP with a quality setting, resizing, and data-URI output. |
+| **YAML & JSON** | Both directions, over a documented subset of YAML. |
+| **Regex tester** | Match highlighting, numbered and named capture groups, flags, and a replacement preview. |
+| **Compare text** | Line-by-line comparison with an added/removed view or a unified diff. |
+| **QR codes** | Byte-mode codes up to version 10, all four correction levels, as scalable SVG. |
 
 Images are read with the canvas API and never leave the tab either — drop one
 on the panel, or paste it from the clipboard.
@@ -53,7 +58,7 @@ npm run build      # typecheck + production bundle in dist/
 
 **No runtime dependencies.** Everything ships as hand-written TypeScript,
 including the colour quantiser and the contour tracer; the whole bundle is
-roughly 38 kB before compression. `vite`, `typescript` and `vitest` are the
+roughly 59 kB before compression. `vite`, `typescript` and `vitest` are the
 only packages, and all three are build-time only.
 
 **Tracing is not magic.** `src/tools/vectorize.ts` reduces an image to a
@@ -71,6 +76,22 @@ stored — a JWT or a secret you paste lives in the tab and disappears with it.
 **Logic is separated from the DOM.** `src/tools/` holds pure functions that take
 strings and return a `Result<T>`; `src/panels/` wires them to the interface.
 That is why the tests cover behaviour rather than markup.
+
+**Two tools state their limits rather than guessing.** The YAML reader handles
+block and flow collections, quoted and plain scalars, comments and the `|`/`>`
+block scalars. Anchors, aliases, tags and multiple documents are refused with a
+message — silently misreading a config file is worse than declining to read it.
+The regex tester runs matching on the page's own thread, so a pattern that
+backtracks catastrophically can freeze the tab; the panel says so, and the text
+is capped.
+
+**The QR encoder was checked against an independent implementation.** Every
+code it produces for the project's test cases is identical, module for module,
+to the one a reference encoder produces, and decodes back to the original text
+through a separate decoder. Two bugs surfaced that way and no other: the format
+bits were placed transposed, and the Reed–Solomon generator polynomial had two
+terms swapped. Both still passed a self-consistency check, which is exactly why
+that check was not enough.
 
 **Signatures are not verified.** The JWT panel decodes and never validates —
 verification needs the signing key, which does not belong in a browser tab. The

@@ -412,3 +412,115 @@ export function createImageWorkbench(maxEdge = 1400): ImageWorkbench {
     },
   };
 }
+
+export interface DualWorkbench extends Omit<Workbench, "input"> {
+  left: HTMLTextAreaElement;
+  right: HTMLTextAreaElement;
+}
+
+/** A workbench that compares two texts rather than transforming one. */
+export function createDualWorkbench(
+  leftLabel: string,
+  rightLabel: string,
+  samples?: readonly [string, string],
+): DualWorkbench {
+  const field = (label: string): HTMLTextAreaElement =>
+    el("textarea", {
+      class: "pane-body input short",
+      spellcheck: "false",
+      autocapitalize: "off",
+      "aria-label": label,
+      placeholder: "Paste here…",
+    });
+
+  const left = field(leftLabel);
+  const right = field(rightLabel);
+  const output = el("div", { class: "pane-body output", "aria-live": "polite" });
+  const status = el("p", { class: "status" });
+  const toolbar = el("div", { class: "toolbar" });
+
+  let runHandler: (() => void) | null = null;
+
+  for (const box of [left, right]) {
+    box.addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+        event.preventDefault();
+        runHandler?.();
+      }
+    });
+  }
+
+  const pane = (label: string, box: HTMLTextAreaElement): HTMLElement =>
+    el(
+      "section",
+      { class: "pane" },
+      el("header", { class: "pane-head" }, el("h3", {}, label)),
+      box,
+    );
+
+  const sampleButton = samples
+    ? el(
+        "button",
+        {
+          type: "button",
+          class: "ghost",
+          onclick: () => {
+            left.value = samples[0];
+            right.value = samples[1];
+            runHandler?.();
+          },
+        },
+        "Load sample",
+      )
+    : null;
+
+  const root = el(
+    "div",
+    { class: "workbench" },
+    toolbar,
+    el("div", { class: "panes" }, pane(leftLabel, left), pane(rightLabel, right)),
+    el(
+      "section",
+      { class: "pane" },
+      el(
+        "header",
+        { class: "pane-head" },
+        el("h3", {}, "Result"),
+        el("div", { class: "pane-actions" }, sampleButton),
+      ),
+      output,
+    ),
+    status,
+  );
+
+  return {
+    root,
+    left,
+    right,
+    toolbar,
+    setOutput(text) {
+      clear(output);
+      output.appendChild(el("pre", {}, text));
+      status.textContent = "";
+      status.className = "status";
+    },
+    setContent(...nodes) {
+      clear(output);
+      append(output, nodes);
+      status.textContent = "";
+      status.className = "status";
+    },
+    setError(message) {
+      clear(output);
+      status.textContent = message;
+      status.className = "status error";
+    },
+    setStatus(message) {
+      status.textContent = message;
+      status.className = "status";
+    },
+    onRun(handler) {
+      runHandler = handler;
+    },
+  };
+}
