@@ -62,7 +62,7 @@ panel says so on screen.
 ## Deployment
 
 The build is a static bundle, so any static host works. `vite.config.ts`
-defaults `base` to `/new-project/` for GitHub Pages project sites; override it
+defaults `base` to `/devbox/` for GitHub Pages project sites; override it
 when deploying elsewhere:
 
 ```bash

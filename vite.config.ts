@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 // (https://<user>.github.io/<repo>/). Override with BASE_PATH when
 // deploying anywhere else, e.g. BASE_PATH=/ npm run build.
 export default defineConfig({
-  base: process.env.BASE_PATH ?? "/new-project/",
+  base: process.env.BASE_PATH ?? "/devbox/",
   build: {
     target: "es2022",
     outDir: "dist",
