@@ -86,19 +86,32 @@ when deploying elsewhere:
 BASE_PATH=/ npm run build
 ```
 
-The included workflow (`.github/workflows/pages.yml`) publishes `main` to GitHub
-Pages. Under Settings → Pages, the source must be **GitHub Actions** — the
-"Deploy from a branch" option serves the repository verbatim, which means the
-unbuilt `index.html` and its `src/main.ts` reference, and the page renders
-blank.
+GitHub Pages has two modes, and this repository is set up to work under both.
+
+**GitHub Actions** runs `.github/workflows/pages.yml`, which builds the project
+and publishes `dist/`. This is the mode to prefer.
+
+**Deploy from a branch** ignores the build entirely and serves the repository as
+it stands. That is why the root `index.html` is a *generated, self-contained
+build* — the whole app inlined into one file, with no asset requests and no base
+URL to get wrong. `scripts/build-standalone.mjs` writes it, `npm run build` runs
+that script, and CI fails if the committed copy has gone stale. Do not edit it
+by hand; the source page it is generated from lives at `app/index.html`.
+
+The two modes can also race: both deployments trigger on a push to `main`, and
+whichever finishes last wins. With a prebuilt root page it no longer matters
+which one that is.
 
 ## Project layout
 
 ```
-src/tools/     pure logic, one module per tool, each with tests
-src/panels/    one UI panel per tool
+app/index.html    the page Vite builds from
+index.html        generated single-file build, committed for branch-mode Pages
+scripts/          the generator for that file
+src/tools/        pure logic, one module per tool, each with tests
+src/panels/       one UI panel per tool
 src/workbench.ts  shared input/output scaffolding
-src/main.ts    app shell, navigation, deep links
+src/main.ts       app shell, navigation, deep links
 ```
 
 Adding a tool means writing a module in `src/tools/`, a panel in `src/panels/`,
