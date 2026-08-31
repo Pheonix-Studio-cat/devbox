@@ -25,4 +25,15 @@ jobs:
         run: npm test
 
       - name: Build
-        run: npx vite build
+        run: npm run build
+
+      # The root index.html is generated and committed so that GitHub Pages
+      # serves a working app even when it is set to deploy the branch verbatim.
+      # A stale copy would quietly ship an old build.
+      - name: Check the committed page is current
+        run: |
+          if ! git diff --quiet -- index.html; then
+            echo "index.html is out of date. Run 'npm run build' and commit the result."
+            git --no-pager diff --stat -- index.html
+            exit 1
+          fi
