@@ -70,8 +70,10 @@ BASE_PATH=/ npm run build
 ```
 
 The included workflow (`.github/workflows/pages.yml`) publishes `main` to GitHub
-Pages once Pages is enabled for the repository with "GitHub Actions" as the
-source.
+Pages. Under Settings → Pages, the source must be **GitHub Actions** — the
+"Deploy from a branch" option serves the repository verbatim, which means the
+unbuilt `index.html` and its `src/main.ts` reference, and the page renders
+blank.
 
 ## Project layout
 
