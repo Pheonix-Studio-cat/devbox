@@ -28,7 +28,13 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      # enablement lets the workflow turn Pages on and claim it as the build
+      # source; without it the run fails whenever Pages is off or still set to
+      # deploy from a branch.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
