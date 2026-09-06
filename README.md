@@ -133,10 +133,25 @@ src/tools/        pure logic, one module per tool, each with tests
 src/panels/       one UI panel per tool
 src/workbench.ts  shared input/output scaffolding
 src/main.ts       app shell, navigation, deep links
+mcp/              optional MCP server, a separate package (see below)
 ```
 
 Adding a tool means writing a module in `src/tools/`, a panel in `src/panels/`,
 and registering it in `src/panels/index.ts`.
+
+## Using the tools from an AI assistant
+
+`mcp/` holds an optional [MCP](https://modelcontextprotocol.io) server that
+exposes the same `src/tools/` functions over the network, so an assistant can
+format your JSON or decode your JWT itself rather than approximating it. It
+deploys to Cloudflare Workers and is entirely separate from the app: it is its
+own npm package, so installing or building the site never pulls in its
+dependencies, and the site ships exactly as it did before.
+
+Be aware that it trades away the property the app is built on. A tool call is a
+network request, so input sent to the MCP server does leave your machine — see
+[mcp/README.md](mcp/README.md), which spells out the trade and what is done to
+keep it small. The app itself is unchanged and still talks to nothing.
 
 ## License
 

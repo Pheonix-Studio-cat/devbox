@@ -1,7 +1,7 @@
 import { err, messageOf, ok, type Result } from "./result";
 
 const encoder = new TextEncoder();
-const decoder = new TextDecoder("utf-8", { fatal: true });
+const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false });
 
 function bytesToBase64(bytes: Uint8Array): string {
   // btoa works on binary strings, so feed it in chunks to avoid blowing the

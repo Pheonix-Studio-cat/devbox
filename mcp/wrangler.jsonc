@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "devbox-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-06",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Devbox handles input people would rather not hand to a stranger. Request
+  // logging is therefore left off on purpose -- see mcp/README.md.
+  "observability": {
+    "enabled": false
+  }
+}
