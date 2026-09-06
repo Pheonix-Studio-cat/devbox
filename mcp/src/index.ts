@@ -381,8 +381,12 @@ function createServer() {
         case "changes":
           return objectResult({ ...stats, changes: changes.value });
         default: {
+          // The patch goes in the structured result too: a client that prefers
+          // structured output would otherwise show only the counts, which is
+          // the one thing 'unified' is not for.
           const patch = toUnifiedDiff(changes.value, context ?? 3);
-          return textResult(patch === "" ? "The two texts are identical." : patch, { ...stats });
+          const text = patch === "" ? "The two texts are identical." : patch;
+          return textResult(text, { ...stats, patch });
         }
       }
     },
