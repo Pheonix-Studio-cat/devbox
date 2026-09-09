@@ -114,6 +114,49 @@ exports roughly fifty operations; advertising each as its own MCP tool would
 spend a large share of a model's context on tool definitions before any work
 started.
 
+## Adding a tool
+
+Writing a module in `src/tools/` does **not** expose it here. Registration is by
+hand, in `createServer()`:
+
+```ts
+server.registerTool(
+  "password",
+  {
+    description: "What it does, and when a model should reach for it.",
+    inputSchema: {
+      length: z.number().int().min(8).max(128).describe("Characters to generate"),
+    },
+  },
+  async ({ length }) => {
+    const result = generatePassword(length);
+    return result.ok
+      ? { content: [{ type: "text", text: result.value }] }
+      : { isError: true, content: [{ type: "text", text: result.error }] };
+  },
+);
+```
+
+This step is deliberate rather than generated. A tool needs a description and a
+parameter schema, and neither can be derived from a TypeScript signature — the
+types are gone at runtime, and the description is the part that tells a model
+when to reach for the tool at all. Generating it would produce fourteen tools
+no model could choose between.
+
+What *is* automated is noticing you forgot. `src/tools/mcp-coverage.test.ts`
+fails when a module has no MCP tool, when a tool has no module, or when the
+exempt list names something that no longer exists:
+
+```
+These modules are not reachable over MCP: password. Register each one in
+mcp/src/index.ts with a description and an input schema, or add it to EXEMPT
+in this file with the reason.
+```
+
+It runs in the repo's normal test suite, so CI catches it on the pull request.
+A tool that should stay out of the server goes in that file's `EXEMPT` map with
+its reason; one whose MCP name differs from its module name goes in `RENAMED`.
+
 ## What is not here
 
 **The two image tools.** Image formats and image-to-SVG both start from pixel
@@ -124,6 +167,26 @@ free. They stay in the app.
 **A local timezone.** The `timestamp` tool's `local` field is the *Worker's*
 local time, which is UTC. In the browser it is genuinely yours. Read `iso` and
 `utc` as authoritative here.
+
+## Adding a second server
+
+Deployment is not tied to this directory. `.github/workflows/deploy-workers.yml`
+finds every directory in the repository that holds a wrangler config and deploys
+each one, so a second server is a second directory:
+
+```
+wetter/
+  wrangler.jsonc      { "name": "wetter", "main": "src/index.ts", ... }
+  package.json
+  src/index.ts
+```
+
+Push that to `main` and it comes up at `https://wetter.<your-subdomain>.workers.dev`
+without touching the workflow or the Cloudflare dashboard. The `name` in the
+wrangler config decides the address, so it must be unique across the account.
+
+The workflow needs `CLOUDFLARE_API_TOKEN` as a repository secret; its header
+comment explains how to create one.
 
 ## Layout
 

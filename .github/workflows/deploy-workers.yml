@@ -1,0 +1,112 @@
+# Deploys every Worker in this repository.
+#
+# A directory is a Worker if it contains a wrangler config. To add a second
+# server, create a directory with its own wrangler.jsonc and a unique "name" --
+# nothing here needs changing, and the next push to main gives it its own
+# address at https://<name>.<your-subdomain>.workers.dev
+#
+# Setup, once:
+#   1. Cloudflare dashboard -> My Profile -> API Tokens -> Create Token
+#      -> template "Edit Cloudflare Workers" -> create, and copy the token.
+#   2. This repository -> Settings -> Secrets and variables -> Actions
+#      -> New repository secret, named CLOUDFLARE_API_TOKEN, paste the value.
+#   3. Optional: add CLOUDFLARE_ACCOUNT_ID the same way. Only needed if the
+#      token can reach more than one account, which makes wrangler ask which.
+#
+# Once this workflow has deployed successfully, the Cloudflare dashboard's own
+# git connection for mcp/ is redundant and can be disconnected -- otherwise
+# both deploy the same Worker on every push. Keeping both is harmless, just
+# wasteful.
+
+name: Deploy Workers
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-workers
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      dirs: ${{ steps.find.outputs.dirs }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: find
+        name: Find every directory holding a wrangler config
+        run: |
+          set -euo pipefail
+          dirs=$(find . \
+            \( -name 'wrangler.jsonc' -o -name 'wrangler.json' -o -name 'wrangler.toml' \) \
+            -not -path '*/node_modules/*' \
+            -printf '%h\n' | sed 's|^\./||' | sort -u)
+
+          if [ -z "$dirs" ]; then
+            echo "No wrangler config found anywhere in the repository."
+            echo 'dirs=[]' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Found:"
+          echo "$dirs" | sed 's/^/  /'
+          json=$(printf '%s\n' "$dirs" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "dirs=$json" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: discover
+    if: needs.discover.outputs.dirs != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      # One Worker's failure should not cancel the others' deployments.
+      fail-fast: false
+      matrix:
+        dir: ${{ fromJSON(needs.discover.outputs.dirs) }}
+    name: Deploy ${{ matrix.dir }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check the API token is configured
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then
+            echo "::error::CLOUDFLARE_API_TOKEN is not set. Add it under" \
+                 "Settings > Secrets and variables > Actions. The header of" \
+                 "this workflow file explains how to create the token."
+            exit 1
+          fi
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.dir }}
+        run: |
+          set -euo pipefail
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f package.json ]; then
+            npm install
+          else
+            echo "No package.json; relying on npx to fetch wrangler."
+          fi
+
+      - name: Deploy
+        working-directory: ${{ matrix.dir }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          # Only export the account when one is configured; an empty value
+          # reads as a malformed account id rather than as "not set".
+          if [ -n "${ACCOUNT_ID:-}" ]; then
+            export CLOUDFLARE_ACCOUNT_ID="$ACCOUNT_ID"
+          fi
+          npx wrangler deploy
