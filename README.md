@@ -1,11 +1,11 @@
-# Devbox
+# Devhelper
 
 Everyday developer tools that run entirely in your browser tab. JSON, YAML, CSV,
 Base64, URLs, JWTs, regular expressions, text comparison, hashes, UUIDs,
 timestamps, colours, number bases, QR codes and image conversion — computed
 locally, with no server involved.
 
-![Devbox](docs/screenshot.png)
+![Devhelper](docs/screenshot.png)
 
 ## Why
 
@@ -13,7 +13,7 @@ The tools in here are the ones you reach for a dozen times a week, and the
 usual answer is to paste your data into a random website. That website sees
 your production JSON, your access token, and the payload you were debugging.
 
-Devbox does the same work with the same convenience, except the page is static:
+Devhelper does the same work with the same convenience, except the page is static:
 it makes no network requests after loading, so nothing you paste can leave the
 tab. Once loaded it works offline, and it deploys anywhere that can serve three
 static files.
@@ -114,7 +114,7 @@ panel says so on screen.
 ## Deployment
 
 The build is a static bundle, so any static host works. `vite.config.ts`
-defaults `base` to `/devbox/` for GitHub Pages project sites; override it
+defaults `base` to `/devhelper/` for GitHub Pages project sites; override it
 when deploying elsewhere:
 
 ```bash
@@ -161,6 +161,17 @@ format your JSON or decode your JWT itself rather than approximating it. It
 deploys to Cloudflare Workers and is entirely separate from the app: it is its
 own npm package, so installing or building the site never pulls in its
 dependencies, and the site ships exactly as it did before.
+
+Results come back as something an assistant can show. A chat window displays an
+image block and does not display an SVG string, which arrives as a wall of path
+data — so the QR tool returns a PNG, rendered without any image library by
+`src/tools/png.ts` and `src/tools/raster.ts`, with the exact SVG alongside. That
+renderer is checked against a browser's rendering of the same SVG, which agrees
+to within a fifth of a percent of pixels.
+
+Opening the address in a browser shows a page rather than a bare string: what
+the server is, the endpoint to paste into a client, and what each tool does.
+[CLAUDE.md](CLAUDE.md) records the convention for anything added later.
 
 Be aware that it trades away the property the app is built on. A tool call is a
 network request, so input sent to the MCP server does leave your machine — see

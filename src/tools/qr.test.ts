@@ -6,6 +6,7 @@ import {
   largestSafeCoverage,
   MAX_VERSION,
   maskPenalty,
+  qrToPng,
   qrToSvg,
 } from "./qr";
 
@@ -295,5 +296,57 @@ describe("qrToSvg with a logo", () => {
     const svg = qrToSvg(code);
     expect(svg).not.toContain("<g transform");
     expect((svg.match(/<circle/g) ?? [])).toHaveLength(0);
+  });
+});
+
+describe("qrToPng", () => {
+  const chunkTypes = (png: Uint8Array): string[] => {
+    const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
+    const types: string[] = [];
+    let at = 8;
+    while (at < png.length) {
+      const length = view.getUint32(at);
+      types.push(String.fromCharCode(...png.subarray(at + 4, at + 8)));
+      at += length + 12;
+    }
+    return types;
+  };
+
+  const dimensions = (png: Uint8Array): [number, number] => {
+    const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
+    return [view.getUint32(16), view.getUint32(20)];
+  };
+
+  it("writes a square PNG sized by the modules, quiet zone and scale", async () => {
+    const code = encode("png please", "M");
+    const png = await qrToPng(code, { scale: 4, quietZone: 4 });
+    expect(chunkTypes(png)).toEqual(["IHDR", "IDAT", "IEND"]);
+    expect(dimensions(png)).toEqual([(code.size + 8) * 4, (code.size + 8) * 4]);
+  });
+
+  it("renders the same code as the SVG does", async () => {
+    // Both renderers read the same matrix, so the picture cannot drift from
+    // the vector version without one of them being wrong.
+    const code = encode("same code", "Q");
+    const png = await qrToPng(code, { scale: 3 });
+    const svg = qrToSvg(code, { scale: 3 });
+    const dark = code.modules.flat().filter(Boolean).length;
+    expect((svg.match(/h1v1h-1z/g) ?? []).length).toBe(dark);
+    expect(dimensions(png)[0]).toBe((code.size + 8) * 3);
+  });
+
+  it("carries a logo into the picture", async () => {
+    const code = encode("with a logo", "H");
+    const logo = { body: '<circle cx="12" cy="12" r="9" fill="currentColor"/>', coverage: 0.25 };
+    const plain = await qrToPng(code, { scale: 4 });
+    const withLogo = await qrToPng(code, { scale: 4, logo });
+    expect(withLogo.length).not.toBe(plain.length);
+  });
+
+  it("honours the requested colours", async () => {
+    const code = encode("colours", "M");
+    const normal = await qrToPng(code, { scale: 3 });
+    const inverted = await qrToPng(code, { scale: 3, dark: "#ffffff", light: "#000000" });
+    expect(inverted.length).not.toBe(normal.length);
   });
 });

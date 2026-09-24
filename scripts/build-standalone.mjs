@@ -28,7 +28,7 @@ const [css, js, favicon, source] = await Promise.all([
   readFile(join(root, "app", "index.html"), "utf8"),
 ]);
 
-const title = /<title>([^<]*)<\/title>/.exec(source)?.[1] ?? "Devbox";
+const title = /<title>([^<]*)<\/title>/.exec(source)?.[1] ?? "Devhelper";
 const description = /name="description"\s+content="([^"]*)"/s.exec(source)?.[1] ?? "";
 
 const page = `<!doctype html>

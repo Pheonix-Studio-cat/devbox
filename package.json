@@ -1,5 +1,5 @@
 {
-  "name": "devbox",
+  "name": "devhelper",
   "version": "0.1.0",
   "private": true,
   "description": "Offline-first developer toolbox that runs entirely in your browser.",

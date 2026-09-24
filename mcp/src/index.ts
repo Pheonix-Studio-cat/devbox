@@ -1,12 +1,12 @@
 /**
- * Devbox as a remote MCP server.
+ * Devhelper as a remote MCP server.
  *
  * Every tool here delegates to the same functions in `src/tools/` that the web
  * app calls. Nothing is reimplemented: the panels and this server are two front
  * ends over one library, so a fix in the library reaches both.
  *
  * Tools are grouped one-per-panel with an `operation` parameter rather than
- * split into one tool per function. Devbox has roughly fifty exported
+ * split into one tool per function. Devhelper has roughly fifty exported
  * operations; advertising each as its own MCP tool would spend a large share of
  * a model's context on tool definitions before any work started.
  */
@@ -22,7 +22,16 @@ import { HASH_ALGORITHMS, hashAll, hashText } from "../../src/tools/hash";
 import { formatJson, inspectJson, minifyJson, sortJsonKeys } from "../../src/tools/json";
 import { decodeJwt } from "../../src/tools/jwt";
 import { BIT_WIDTHS, describeNumber, parseNumber } from "../../src/tools/numbers";
-import { assessLogo, EC_LEVELS, encodeQr, largestSafeCoverage, qrToSvg } from "../../src/tools/qr";
+import {
+  assessLogo,
+  EC_LEVELS,
+  encodeQr,
+  largestSafeCoverage,
+  qrToPng,
+  qrToSvg,
+} from "../../src/tools/qr";
+import { toBase64 } from "../../src/tools/png";
+import { landingPage } from "./landing";
 import { ICON_IDS, findIcon } from "../../src/tools/icons";
 import { generateMany, randomToken, uuidV4 } from "../../src/tools/random";
 import { findMatches, replaceMatches } from "../../src/tools/regex";
@@ -31,11 +40,35 @@ import { describeTimestamp, parseTimestamp } from "../../src/tools/timestamp";
 import { buildQuery, decodeUrl, encodeUrl, parseUrl } from "../../src/tools/url";
 import { jsonToYaml, yamlToJson } from "../../src/tools/yaml";
 
+type TextContent = { type: "text"; text: string };
+type ImageContent = { type: "image"; data: string; mimeType: string };
+
 type ToolResult = {
-  content: Array<{ type: "text"; text: string }>;
+  content: Array<TextContent | ImageContent>;
   structuredContent?: Record<string, unknown>;
   isError?: boolean;
 };
+
+/**
+ * A picture the caller's chat window will actually display.
+ *
+ * Clients render an image block; they do not render an SVG string, which
+ * arrives as a wall of path data. Anything worth looking at goes back as PNG,
+ * with the exact SVG alongside for whoever wants the sharp version.
+ */
+function imageResult(
+  png: Uint8Array,
+  caption: string,
+  structured?: Record<string, unknown>,
+): ToolResult {
+  return {
+    content: [
+      { type: "image", data: toBase64(png), mimeType: "image/png" },
+      { type: "text", text: caption },
+    ],
+    ...(structured ? { structuredContent: structured } : {}),
+  };
+}
 
 /** A failed tool reports the library's own message rather than throwing. */
 function failure(message: string): ToolResult {
@@ -61,7 +94,7 @@ function objectResult(value: Record<string, unknown>): ToolResult {
 }
 
 function createServer() {
-  const server = new McpServer({ name: "devbox", version: "0.1.0" });
+  const server = new McpServer({ name: "devhelper", version: "0.1.0" });
 
   // -- JSON ---------------------------------------------------------------
   server.registerTool(
@@ -460,7 +493,20 @@ function createServer() {
       }
 
       const svg = qrToSvg(code.value, options);
-      return textResult(svg, {
+      const png = await qrToPng(code.value, options);
+
+      const caption =
+        `QR code, version ${code.value.version} (${code.value.size}×${code.value.size} modules), ` +
+        `correction level ${code.value.ecLevel}.` +
+        (damage
+          ? ` The icon covers ${damage.coveredModules} modules and spends ` +
+            `${damage.worstBlock} of the ${damage.capacityPerBlock} repairs available in the ` +
+            `worst block, leaving ${damage.headroom}.`
+          : "") +
+        "\n\nThe SVG below is the same code, sharp at any size:\n\n" +
+        svg;
+
+      return imageResult(png, caption, {
         version: code.value.version,
         ecLevel: code.value.ecLevel,
         size: code.value.size,
@@ -479,10 +525,9 @@ export default {
   fetch(request: Request, env: unknown, ctx: ExecutionContext) {
     const url = new URL(request.url);
     if (url.pathname === "/") {
-      return new Response(
-        `Devbox MCP server.\n\nEndpoint: ${url.origin}/mcp\nThe app itself: https://pheonix-studio-cat.github.io/devbox/\n`,
-        { headers: { "content-type": "text/plain; charset=utf-8" } },
-      );
+      return new Response(landingPage(url.origin), {
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
     }
     return handler(request, env, ctx);
   },

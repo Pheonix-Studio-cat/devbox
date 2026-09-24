@@ -1,8 +1,8 @@
 {
-  "name": "devbox-mcp",
+  "name": "devhelper-mcp",
   "version": "0.1.0",
   "private": true,
-  "description": "Devbox's tools exposed as a remote MCP server on Cloudflare Workers.",
+  "description": "Devhelper's tools exposed as a remote MCP server on Cloudflare Workers.",
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {

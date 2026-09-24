@@ -1,3 +1,5 @@
+import { encodePng } from "./png";
+import { rasteriseIcon } from "./raster";
 import { err, ok, type Result } from "./result";
 
 export const EC_LEVELS = ["L", "M", "Q", "H"] as const;
@@ -661,4 +663,129 @@ export function qrToSvg(code: QrCode, options: QrSvgOptions = {}): string {
     `width="${pixels}" height="${pixels}" shape-rendering="crispEdges">\n` +
     `${layers.join("\n")}\n</svg>`
   );
+}
+
+/** #rgb or #rrggbb to channel values. */
+function parseHexColour(value: string, fallback: [number, number, number]): [number, number, number] {
+  const digits = value.replace("#", "");
+  const expand = (pair: string): number => Number.parseInt(pair, 16);
+  if (/^[0-9a-f]{3}$/i.test(digits)) {
+    return [expand(digits[0]! + digits[0]!), expand(digits[1]! + digits[1]!), expand(digits[2]! + digits[2]!)];
+  }
+  if (/^[0-9a-f]{6}$/i.test(digits)) {
+    return [expand(digits.slice(0, 2)), expand(digits.slice(2, 4)), expand(digits.slice(4, 6))];
+  }
+  return fallback;
+}
+
+/**
+ * Renders the same code as `qrToSvg`, but as pixels.
+ *
+ * The SVG is the better artefact — it stays sharp at any size. This exists
+ * because a chat window will display a PNG and will not display an SVG, so a
+ * model calling the MCP tool can show the person what it made.
+ */
+export async function qrToPng(code: QrCode, options: QrSvgOptions = {}): Promise<Uint8Array> {
+  const { quietZone = 4, scale = 8, dark = "#000000", light = "#ffffff", logo } = options;
+  const span = code.size + quietZone * 2;
+  const pixels = span * scale;
+
+  const darkRgb = parseHexColour(dark, [0, 0, 0]);
+  const lightRgb = parseHexColour(light, [255, 255, 255]);
+  const buffer = new Uint8Array(pixels * pixels * 3);
+
+  const put = (x: number, y: number, colour: readonly [number, number, number]): void => {
+    const at = (y * pixels + x) * 3;
+    buffer[at] = colour[0];
+    buffer[at + 1] = colour[1];
+    buffer[at + 2] = colour[2];
+  };
+
+  const blend = (
+    x: number,
+    y: number,
+    colour: readonly [number, number, number],
+    alpha: number,
+  ): void => {
+    if (alpha <= 0) return;
+    const at = (y * pixels + x) * 3;
+    for (let channel = 0; channel < 3; channel += 1) {
+      const existing = buffer[at + channel]!;
+      buffer[at + channel] = Math.round(existing + (colour[channel]! - existing) * alpha);
+    }
+  };
+
+  for (let y = 0; y < pixels; y += 1) {
+    for (let x = 0; x < pixels; x += 1) put(x, y, lightRgb);
+  }
+
+  for (let row = 0; row < code.size; row += 1) {
+    for (let column = 0; column < code.size; column += 1) {
+      if (!code.modules[row]![column]) continue;
+      const originX = (column + quietZone) * scale;
+      const originY = (row + quietZone) * scale;
+      for (let y = 0; y < scale; y += 1) {
+        for (let x = 0; x < scale; x += 1) put(originX + x, originY + y, darkRgb);
+      }
+    }
+  }
+
+  if (!logo) return encodePng(buffer, pixels, pixels);
+
+  const side = Math.max(0, logo.coverage) * code.size * scale;
+  const centre = pixels / 2;
+  const shape = logo.shape ?? "circle";
+  const plateRgb = parseHexColour(logo.plate ?? light, lightRgb);
+
+  // Three samples per axis keeps the plate's edge from stair-stepping.
+  const SAMPLES = 3;
+  if (shape !== "none") {
+    const radius = side / 2;
+    const corner = side * 0.18;
+    const from = Math.max(0, Math.floor(centre - radius - 1));
+    const to = Math.min(pixels - 1, Math.ceil(centre + radius + 1));
+
+    for (let y = from; y <= to; y += 1) {
+      for (let x = from; x <= to; x += 1) {
+        let hits = 0;
+        for (let sy = 0; sy < SAMPLES; sy += 1) {
+          for (let sx = 0; sx < SAMPLES; sx += 1) {
+            const px = x + (sx + 0.5) / SAMPLES - centre;
+            const py = y + (sy + 0.5) / SAMPLES - centre;
+            const inside =
+              shape === "circle"
+                ? px * px + py * py <= radius * radius
+                : Math.max(
+                    Math.abs(px) - (radius - corner),
+                    0,
+                  ) ** 2 +
+                    Math.max(Math.abs(py) - (radius - corner), 0) ** 2 <=
+                    corner * corner &&
+                  Math.abs(px) <= radius &&
+                  Math.abs(py) <= radius;
+            if (inside) hits += 1;
+          }
+        }
+        blend(x, y, plateRgb, hits / (SAMPLES * SAMPLES));
+      }
+    }
+  }
+
+  const inner = Math.round(side * (shape === "none" ? 1 : 0.68));
+  if (inner >= 2) {
+    const mask = rasteriseIcon(logo.body, inner);
+    const iconRgb = parseHexColour(logo.color ?? dark, darkRgb);
+    const originX = Math.round(centre - inner / 2);
+    const originY = Math.round(centre - inner / 2);
+
+    for (let y = 0; y < inner; y += 1) {
+      for (let x = 0; x < inner; x += 1) {
+        const target = { x: originX + x, y: originY + y };
+        if (target.x < 0 || target.y < 0 || target.x >= pixels || target.y >= pixels) continue;
+        blend(target.x, target.y, iconRgb, mask[y * inner + x]!);
+      }
+    }
+  }
+
+  return encodePng(buffer, pixels, pixels);
 }

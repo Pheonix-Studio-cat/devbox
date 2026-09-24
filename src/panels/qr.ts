@@ -37,7 +37,7 @@ export const qrPanel: Panel = {
     const bench = createWorkbench({
       inputLabel: "Text or link",
       placeholder: "https://example.com",
-      sample: "https://pheonix-studio-cat.github.io/devbox/",
+      sample: "https://pheonix-studio-cat.github.io/devhelper/",
     });
 
     const build = () => {
