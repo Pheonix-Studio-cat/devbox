@@ -662,3 +662,52 @@ textarea.short {
     grid-template-columns: 2.6em 2.6em 1.2em minmax(0, 1fr);
   }
 }
+
+/* Icon picker for QR codes */
+.iconrow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.iconpicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-sunken);
+  max-height: 124px;
+  overflow-y: auto;
+}
+
+.icontile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--bg-raised);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.icontile:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.icontile.active {
+  color: var(--accent-contrast);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.icontile svg {
+  display: block;
+  pointer-events: none;
+}

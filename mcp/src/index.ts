@@ -22,7 +22,8 @@ import { HASH_ALGORITHMS, hashAll, hashText } from "../../src/tools/hash";
 import { formatJson, inspectJson, minifyJson, sortJsonKeys } from "../../src/tools/json";
 import { decodeJwt } from "../../src/tools/jwt";
 import { BIT_WIDTHS, describeNumber, parseNumber } from "../../src/tools/numbers";
-import { EC_LEVELS, encodeQr, qrToSvg } from "../../src/tools/qr";
+import { assessLogo, EC_LEVELS, encodeQr, largestSafeCoverage, qrToSvg } from "../../src/tools/qr";
+import { ICON_IDS, findIcon } from "../../src/tools/icons";
 import { generateMany, randomToken, uuidV4 } from "../../src/tools/random";
 import { findMatches, replaceMatches } from "../../src/tools/regex";
 import type { Result } from "../../src/tools/result";
@@ -399,19 +400,73 @@ function createServer() {
       description:
         "Encodes text as a byte-mode QR code up to version 10 and returns it as a scalable SVG. " +
         "Higher correction levels survive more damage but hold less data: L about 7 percent, " +
-        "M 15, Q 25, H 30.",
+        "M 15, Q 25, H 30. An optional icon can sit in the middle; it covers modules, so the " +
+        "result reports how much of the error correction that spends and refuses a logo the " +
+        "code could not survive. Use level H for anything with a logo.",
       inputSchema: {
         text: z.string().describe("What the code should carry"),
         ecLevel: z.enum(EC_LEVELS).optional().describe("Error correction, default M"),
         scale: z.number().int().min(1).max(32).optional().describe("Pixels per module, default 8"),
         quietZone: z.number().int().min(0).max(16).optional().describe("Margin in modules, default 4"),
+        logo: z
+          .enum(ICON_IDS as [string, ...string[]])
+          .optional()
+          .describe("Icon for the middle of the code; omit for a plain code"),
+        logoCoverage: z
+          .number()
+          .min(0.05)
+          .max(0.4)
+          .optional()
+          .describe("Fraction of the code's width the icon covers, default 0.2"),
+        logoShape: z
+          .enum(["circle", "square", "none"])
+          .optional()
+          .describe("Plate behind the icon, default circle"),
+        logoColor: z.string().optional().describe("Icon colour, default the code's dark colour"),
       },
     },
-    async ({ text, ecLevel, scale, quietZone }) => {
+    async ({ text, ecLevel, scale, quietZone, logo, logoCoverage, logoShape, logoColor }) => {
       const code = encodeQr(text, ecLevel ?? "M");
       if (!code.ok) return failure(code.error);
-      const svg = qrToSvg(code.value, { scale: scale ?? 8, quietZone: quietZone ?? 4 });
-      return textResult(svg, { version: code.value.version, ecLevel: code.value.ecLevel, size: code.value.size, svg });
+
+      const options: Parameters<typeof qrToSvg>[1] = {
+        scale: scale ?? 8,
+        quietZone: quietZone ?? 4,
+      };
+      let damage;
+
+      if (logo) {
+        const icon = findIcon(logo);
+        if (!icon) return failure(`No icon called "${logo}". Available: ${ICON_IDS.join(", ")}.`);
+
+        const coverage = logoCoverage ?? 0.2;
+        damage = assessLogo(code.value, coverage);
+        if (!damage.readable) {
+          const largest = largestSafeCoverage(code.value);
+          return failure(
+            `A logo covering ${Math.round(coverage * 100)}% would corrupt ${damage.worstBlock} ` +
+              `codewords in one block, and only ${damage.capacityPerBlock} can be repaired, so ` +
+              `the code would not scan. Use at most ${Math.round(largest * 100)}% at level ` +
+              `${code.value.ecLevel}, or switch to level H.`,
+          );
+        }
+
+        options.logo = {
+          body: icon.body,
+          coverage,
+          shape: logoShape ?? "circle",
+          ...(logoColor ? { color: logoColor } : {}),
+        };
+      }
+
+      const svg = qrToSvg(code.value, options);
+      return textResult(svg, {
+        version: code.value.version,
+        ecLevel: code.value.ecLevel,
+        size: code.value.size,
+        ...(damage ? { logoDamage: damage } : {}),
+        svg,
+      });
     },
   );
 

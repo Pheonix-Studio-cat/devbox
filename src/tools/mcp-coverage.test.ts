@@ -24,6 +24,7 @@ const EXEMPT: Record<string, string> = {
   vectorize: "starts from canvas pixel data, which Workers cannot produce",
   quantize: "helper for vectorize, same constraint",
   trace: "helper for vectorize, same constraint",
+  icons: "a shape table, reachable through the qr tool's logo parameter",
 };
 
 /** Tools whose MCP name differs from the module name. */

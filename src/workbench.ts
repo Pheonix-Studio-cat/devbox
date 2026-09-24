@@ -166,12 +166,14 @@ export function choice(
   label: string,
   values: readonly string[],
   onChange: (value: string) => void,
+  selected?: string,
 ): HTMLLabelElement {
   const select = el(
     "select",
     { onchange: () => onChange(select.value) },
     ...values.map((value) => el("option", { value }, value)),
   );
+  if (selected !== undefined) select.value = selected;
   return el("label", { class: "field" }, el("span", {}, label), select);
 }
 

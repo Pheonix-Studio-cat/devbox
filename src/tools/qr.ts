@@ -11,6 +11,17 @@ export interface QrCode {
   modules: boolean[][];
   mask: number;
   bytes: number;
+  /**
+   * Which interleaved codeword each module belongs to, row-major, or -1 for
+   * function patterns and the leftover bits. Covering a module corrupts that
+   * whole codeword, which is what makes a centre logo measurable rather than a
+   * matter of taste.
+   */
+  codewordAt: Int32Array;
+  /** The error-correction block each interleaved codeword came from. */
+  blockOfCodeword: Int32Array;
+  /** Error-correction codewords per block. */
+  ecPerBlock: number;
 }
 
 /**
@@ -223,6 +234,7 @@ function placeData(
   modules: (boolean | null)[][],
   reserved: boolean[][],
   bits: readonly number[],
+  codewordAt: Int32Array,
 ): void {
   const size = modules.length;
   let index = 0;
@@ -237,6 +249,10 @@ function placeData(
       for (const column of [right, right - 1]) {
         if (reserved[row]![column]) continue;
         modules[row]![column] = (bits[index] ?? 0) === 1;
+        // The trailing remainder bits belong to no codeword.
+        codewordAt[row * size + column] = index < bits.length - (bits.length % 8)
+          ? Math.floor(index / 8)
+          : -1;
         index += 1;
       }
     }
@@ -418,12 +434,21 @@ export function encodeQr(
   }
 
   const interleaved: number[] = [];
+  const blockOf: number[] = [];
   const longest = Math.max(...dataBlocks.map((block) => block.length));
   for (let i = 0; i < longest; i += 1) {
-    for (const block of dataBlocks) if (i < block.length) interleaved.push(block[i]!);
+    dataBlocks.forEach((block, blockIndex) => {
+      if (i < block.length) {
+        interleaved.push(block[i]!);
+        blockOf.push(blockIndex);
+      }
+    });
   }
   for (let i = 0; i < ecPerBlock!; i += 1) {
-    for (const block of ecBlocks) interleaved.push(block[i]!);
+    ecBlocks.forEach((block, blockIndex) => {
+      interleaved.push(block[i]!);
+      blockOf.push(blockIndex);
+    });
   }
 
   const bits: number[] = [];
@@ -434,8 +459,9 @@ export function encodeQr(
 
   const size = version * 4 + 17;
   const { modules, reserved } = blankMatrix(size);
+  const codewordAt = new Int32Array(size * size).fill(-1);
   placeFunctionPatterns(modules, reserved, version);
-  placeData(modules, reserved, bits);
+  placeData(modules, reserved, bits, codewordAt);
 
   // Try every mask and keep the one the penalty rules like best.
   let best: boolean[][] | null = null;
@@ -466,7 +492,107 @@ export function encodeQr(
     modules: best!,
     mask: bestMask,
     bytes: data.length,
+    codewordAt,
+    blockOfCodeword: Int32Array.from(blockOf),
+    ecPerBlock: ecPerBlock!,
   });
+}
+
+export interface QrLogo {
+  /** SVG fragment drawn on a 24×24 grid, using currentColor. */
+  body: string;
+  /** Fraction of the code's width the logo covers, edge to edge. */
+  coverage: number;
+  shape?: "circle" | "square" | "none";
+  color?: string;
+  /** The plate behind the icon; defaults to the code's light colour. */
+  plate?: string;
+}
+
+export interface DamageReport {
+  /** Modules the logo sits on top of. */
+  coveredModules: number;
+  /** Codewords those modules belong to — each one is corrupted entirely. */
+  damagedCodewords: number;
+  /** The worst-hit block, which is the one that decides readability. */
+  worstBlock: number;
+  /** Codewords Reed–Solomon can repair per block. */
+  capacityPerBlock: number;
+  /** Spare repairs left in the worst block, for print and scanning noise. */
+  headroom: number;
+  /** True while every block stays inside what its parity can repair. */
+  readable: boolean;
+}
+
+/**
+ * Measures what a centre logo costs. A covered module corrupts its whole
+ * codeword, and Reed–Solomon repairs up to half its parity codewords per
+ * block, so the worst-hit block decides whether the code still scans. This is
+ * the arithmetic behind the usual "keep it under 30%" folklore, done properly.
+ */
+export function assessLogo(code: QrCode, coverage: number): DamageReport {
+  const side = Math.max(0, coverage) * code.size;
+  const centre = code.size / 2;
+  const half = side / 2;
+
+  // A zero-width square still straddles the centre module under an interval
+  // test, so no logo has to mean no damage explicitly.
+  if (side <= 0) {
+    const capacity = Math.floor(code.ecPerBlock / 2);
+    return {
+      coveredModules: 0,
+      damagedCodewords: 0,
+      worstBlock: 0,
+      capacityPerBlock: capacity,
+      headroom: capacity,
+      readable: true,
+    };
+  }
+
+  const damaged = new Set<number>();
+  let coveredModules = 0;
+
+  for (let row = 0; row < code.size; row += 1) {
+    for (let column = 0; column < code.size; column += 1) {
+      const overlaps =
+        column + 1 > centre - half &&
+        column < centre + half &&
+        row + 1 > centre - half &&
+        row < centre + half;
+      if (!overlaps) continue;
+
+      coveredModules += 1;
+      const codeword = code.codewordAt[row * code.size + column]!;
+      if (codeword >= 0) damaged.add(codeword);
+    }
+  }
+
+  const perBlock = new Map<number, number>();
+  for (const codeword of damaged) {
+    const block = code.blockOfCodeword[codeword] ?? 0;
+    perBlock.set(block, (perBlock.get(block) ?? 0) + 1);
+  }
+
+  const worstBlock = perBlock.size === 0 ? 0 : Math.max(...perBlock.values());
+  const capacityPerBlock = Math.floor(code.ecPerBlock / 2);
+
+  return {
+    coveredModules,
+    damagedCodewords: damaged.size,
+    worstBlock,
+    capacityPerBlock,
+    headroom: capacityPerBlock - worstBlock,
+    readable: worstBlock <= capacityPerBlock,
+  };
+}
+
+/** The largest logo this code can carry, to the nearest percent. */
+export function largestSafeCoverage(code: QrCode, spare = 1): number {
+  for (let percent = 40; percent >= 0; percent -= 1) {
+    const report = assessLogo(code, percent / 100);
+    if (report.headroom >= spare) return percent / 100;
+  }
+  return 0;
 }
 
 export interface QrSvgOptions {
@@ -476,7 +602,13 @@ export interface QrSvgOptions {
   scale?: number;
   dark?: string;
   light?: string;
+  logo?: QrLogo;
 }
+
+const round = (value: number, places = 3): number => {
+  const factor = 10 ** places;
+  return Math.round(value * factor) / factor;
+};
 
 export function qrToSvg(code: QrCode, options: QrSvgOptions = {}): string {
   const { quietZone = 4, scale = 8, dark = "#000000", light = "#ffffff" } = options;
@@ -493,10 +625,40 @@ export function qrToSvg(code: QrCode, options: QrSvgOptions = {}): string {
     }
   }
 
+  const layers = [
+    `  <rect width="${span}" height="${span}" fill="${light}"/>`,
+    `  <path fill="${dark}" d="${parts.join("")}"/>`,
+  ];
+
+  const { logo } = options;
+  if (logo) {
+    const side = Math.max(0, logo.coverage) * code.size;
+    const centre = span / 2;
+    const plate = logo.plate ?? light;
+    const shape = logo.shape ?? "circle";
+
+    if (shape === "circle") {
+      layers.push(`  <circle cx="${round(centre)}" cy="${round(centre)}" r="${round(side / 2)}" fill="${plate}"/>`);
+    } else if (shape === "square") {
+      const corner = side * 0.18;
+      layers.push(
+        `  <rect x="${round(centre - side / 2)}" y="${round(centre - side / 2)}" ` +
+          `width="${round(side)}" height="${round(side)}" rx="${round(corner)}" fill="${plate}"/>`,
+      );
+    }
+
+    // The icon sits inside the plate with a margin, scaled from its 24-unit grid.
+    const inner = side * (shape === "none" ? 1 : 0.68);
+    const factor = inner / 24;
+    layers.push(
+      `  <g transform="translate(${round(centre - inner / 2)} ${round(centre - inner / 2)}) ` +
+        `scale(${round(factor, 4)})" color="${logo.color ?? dark}">${logo.body}</g>`,
+    );
+  }
+
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${span} ${span}" ` +
     `width="${pixels}" height="${pixels}" shape-rendering="crispEdges">\n` +
-    `  <rect width="${span}" height="${span}" fill="${light}"/>\n` +
-    `  <path fill="${dark}" d="${parts.join("")}"/>\n</svg>`
+    `${layers.join("\n")}\n</svg>`
   );
 }
