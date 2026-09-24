@@ -11,13 +11,22 @@ const EXTENSIONS: Record<FormatName, string> = { PNG: "png", JPEG: "jpg", WebP: 
 export const convertPanel: Panel = {
   id: "convert",
   name: "Image formats",
-  blurb: "Convert between PNG, JPEG and WebP, resize, or embed as a data URI.",
+  blurb: "Convert between PNG, JPEG, WebP and SVG-to-pixels, resize, or embed as a data URI.",
   render() {
     let format: FormatName = "WebP";
     let quality = 85;
     let maxEdge = 0;
+    let svgEdge = 1024;
 
-    const bench = createImageWorkbench(4000);
+    const bench = createImageWorkbench(4000, svgEdge);
+
+    // Encoding is asynchronous and two conversions can finish out of order, so
+    // an older one must not paint over a newer one, nor over the error from a
+    // file that would not open. Without this the caption names the file just
+    // dropped while the result still describes the last.
+    let job = 0;
+    const stale = (mine: number, revision: number): boolean =>
+      mine !== job || revision !== bench.revision();
 
     const redraw = (): HTMLCanvasElement | null => {
       const image = bench.current();
@@ -42,9 +51,12 @@ export const convertPanel: Panel = {
         return;
       }
 
+      const mine = ++job;
+      const revision = bench.revision();
       const type = FORMATS[format];
       canvas.toBlob(
         (blob) => {
+          if (stale(mine, revision)) return;
           if (!blob) {
             bench.setError(`This browser cannot write ${format}. Try PNG.`);
             return;
@@ -80,6 +92,9 @@ export const convertPanel: Panel = {
         bench.setError("Load an image first — drop one on the left.");
         return;
       }
+
+      // Same ordering guard: a pending conversion must not land on top of this.
+      job += 1;
       const uri = canvas.toDataURL(FORMATS[format], quality / 100);
       bench.setContent(
         el("p", { class: "muted" }, "Paste this straight into CSS or an <img> tag."),
@@ -93,6 +108,14 @@ export const convertPanel: Panel = {
     bench.toolbar.append(
       action("Convert", convert, true),
       action("As data URI", asDataUri),
+      number("SVG at px", svgEdge, 16, 4096, (value) => {
+        svgEdge = value;
+        // Only an SVG can be redrawn larger: pixels do not grow back.
+        void bench.redrawSvg(value).then((redrawn) => {
+          if (!redrawn) return;
+          convert();
+        });
+      }, 64),
       choice("Format", Object.keys(FORMATS), (value) => {
         format = value as FormatName;
       }),

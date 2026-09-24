@@ -1,5 +1,6 @@
 import { append, clear, copyText, el } from "./dom";
 import { fitWithin, formatBytes } from "./tools/image";
+import { isSvg, readSvgSize, renderSize } from "./tools/svg";
 
 export interface Workbench {
   root: HTMLElement;
@@ -192,7 +193,17 @@ export function number(
     min: String(min),
     max: String(max),
     step: String(step),
-    oninput: () => onChange(Number(field.value)),
+    // Clearing the field to type a new number briefly leaves it empty, which
+    // reads as 0 and would be acted on — rendering at one pixel, generating
+    // nothing, indenting by none. An empty or unparseable field means "not yet",
+    // and anything else is held inside the range the control advertises.
+    oninput: () => {
+      const raw = field.value.trim();
+      if (raw === "") return;
+      const parsed = Number(raw);
+      if (!Number.isFinite(parsed)) return;
+      onChange(Math.min(max, Math.max(min, parsed)));
+    },
   });
   return el("label", { class: "field" }, el("span", {}, label), field);
 }
@@ -230,6 +241,8 @@ export interface LoadedImage {
   type: string;
   /** True when the image was too large and had to be scaled down. */
   scaled: boolean;
+  /** The SVG's own markup, when the file was one; otherwise null. */
+  svgSource: string | null;
 }
 
 export interface ImageWorkbench extends Omit<Workbench, "input"> {
@@ -237,32 +250,105 @@ export interface ImageWorkbench extends Omit<Workbench, "input"> {
   current(): LoadedImage | null;
   /** Runs when a new image is dropped, picked or pasted. */
   onImage(handler: (image: LoadedImage) => void): void;
+  /**
+   * Draws the loaded SVG again at a different size. Returns false when the
+   * loaded file is not an SVG, where size is fixed by the pixels themselves.
+   */
+  redrawSvg(longEdge: number): Promise<boolean>;
+  /**
+   * Counts loads, successful or not. A panel doing asynchronous work captures
+   * this before it starts and drops its result if the number has moved on —
+   * otherwise a slow encode lands on top of a newer image, or wipes the error
+   * from a file that would not open.
+   */
+  revision(): number;
+}
+
+function blankCanvas(width: number, height: number): CanvasRenderingContext2D {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) throw new Error("This browser will not give us a 2D canvas.");
+  return context;
+}
+
+/**
+ * Rasterises an SVG at a chosen size.
+ *
+ * An SVG has no pixels until something decides how many, so the caller names a
+ * long edge and the file's own proportions do the rest. It goes through an
+ * <img>, not createImageBitmap, which cannot decode SVG in every browser — and
+ * an SVG loaded as an image runs no scripts and fetches nothing, which is the
+ * safe way to draw a file someone handed us.
+ */
+async function drawSvgToCanvas(file: File, longEdge: number): Promise<LoadedImage> {
+  const source = await file.text();
+  const stated = readSvgSize(source);
+  // No stated size is not a failure: fall back to a square and let the person
+  // pick the edge, which is the only honest default.
+  const intrinsic = stated.ok ? stated.value : { width: 1, height: 1, fromViewBox: false };
+  const { width, height } = renderSize(intrinsic, longEdge);
+
+  const url = URL.createObjectURL(file);
+  try {
+    const image = new Image();
+    image.width = width;
+    image.height = height;
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("The SVG could not be drawn."));
+      image.src = url;
+    });
+
+    const context = blankCanvas(width, height);
+    context.drawImage(image, 0, 0, width, height);
+    return {
+      canvas: context.canvas,
+      width,
+      height,
+      name: file.name,
+      bytes: file.size,
+      type: "image/svg+xml",
+      scaled: false,
+      svgSource: source,
+    };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 /** Draws a file onto a canvas, scaled down to `maxEdge` if it is larger. */
-async function drawToCanvas(file: File, maxEdge: number): Promise<LoadedImage> {
+async function drawToCanvas(file: File, maxEdge: number, svgEdge: number): Promise<LoadedImage> {
+  if (isSvg(file.name, file.type)) return drawSvgToCanvas(file, svgEdge);
+
   const bitmap = await createImageBitmap(file);
   const { width, height, scaled } = fitWithin(
     { width: bitmap.width, height: bitmap.height },
     maxEdge,
   );
 
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext("2d", { willReadFrequently: true });
-  if (!context) throw new Error("This browser will not give us a 2D canvas.");
+  const context = blankCanvas(width, height);
   context.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
 
-  return { canvas, width, height, name: file.name, bytes: file.size, type: file.type, scaled };
+  return {
+    canvas: context.canvas,
+    width,
+    height,
+    name: file.name,
+    bytes: file.size,
+    type: file.type,
+    scaled,
+    svgSource: null,
+  };
 }
 
 /**
  * A workbench whose input is an image file rather than text: drop it, pick it,
  * or paste it from the clipboard.
  */
-export function createImageWorkbench(maxEdge = 1400): ImageWorkbench {
+export function createImageWorkbench(maxEdge = 1400, svgEdge = 1024): ImageWorkbench {
   const output = el("div", { class: "pane-body output", "aria-live": "polite" });
   const status = el("p", { class: "status" });
   const toolbar = el("div", { class: "toolbar" });
@@ -270,29 +356,50 @@ export function createImageWorkbench(maxEdge = 1400): ImageWorkbench {
   const caption = el("p", { class: "muted" }, "No image loaded yet.");
 
   let loaded: LoadedImage | null = null;
+  let lastFile: File | null = null;
+  // Decoding is asynchronous, so two loads can overtake each other. Only the
+  // newest one is allowed to put its result on screen.
+  let generation = 0;
+  let renderEdge = svgEdge;
   let runHandler: (() => void) | null = null;
   let imageHandler: ((image: LoadedImage) => void) | null = null;
 
-  const picker = el("input", { type: "file", accept: "image/*", class: "visually-hidden" });
+  // Some systems hand over an SVG with an empty type, so the extension is
+  // offered too.
+  const picker = el("input", {
+    type: "file",
+    accept: "image/*,.svg",
+    class: "visually-hidden",
+  });
 
   const accept = async (file: File | null | undefined): Promise<void> => {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
+    if (!file.type.startsWith("image/") && !isSvg(file.name, file.type)) {
       status.textContent = `${file.name} is not an image.`;
       status.className = "status error";
       return;
     }
+    const mine = ++generation;
     try {
-      loaded = await drawToCanvas(file, maxEdge);
+      const drawn = await drawToCanvas(file, maxEdge, renderEdge);
+      if (mine !== generation) return;
+
+      loaded = drawn;
+      lastFile = file;
       clear(preview);
-      preview.appendChild(loaded.canvas);
-      const note = loaded.scaled ? ` · scaled down to fit ${maxEdge}px` : "";
+      preview.appendChild(drawn.canvas);
+      const note = drawn.svgSource
+        ? ` · drawn at ${drawn.width}×${drawn.height}, and it has no size of its own`
+        : drawn.scaled
+          ? ` · scaled down to fit ${maxEdge}px`
+          : "";
       caption.textContent =
-        `${loaded.name} — ${loaded.width}×${loaded.height}, ${formatBytes(loaded.bytes)}${note}`;
+        `${drawn.name} — ${drawn.width}×${drawn.height}, ${formatBytes(drawn.bytes)}${note}`;
       status.textContent = "";
       status.className = "status";
-      imageHandler?.(loaded);
+      imageHandler?.(drawn);
     } catch {
+      if (mine !== generation) return;
       status.textContent = `${file.name} could not be decoded as an image.`;
       status.className = "status error";
     }
@@ -382,6 +489,13 @@ export function createImageWorkbench(maxEdge = 1400): ImageWorkbench {
     root,
     toolbar,
     current: () => loaded,
+    revision: () => generation,
+    async redrawSvg(longEdge) {
+      if (!lastFile || !loaded?.svgSource) return false;
+      renderEdge = longEdge;
+      await accept(lastFile);
+      return true;
+    },
     setOutput(text) {
       clear(output);
       output.appendChild(el("pre", {}, text));

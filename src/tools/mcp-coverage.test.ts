@@ -27,6 +27,7 @@ const EXEMPT: Record<string, string> = {
   icons: "a shape table, reachable through the qr tool's logo parameter",
   raster: "draws icons into pixels for the qr tool's PNG output",
   png: "writes the qr tool's PNG output",
+  svg: "reads an SVG's stated size for the browser's rasteriser; drawing one needs a renderer a Worker has not got",
 };
 
 /** Tools whose MCP name differs from the module name. */

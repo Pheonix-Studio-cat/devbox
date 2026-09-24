@@ -33,7 +33,7 @@ static files.
 | **Colours** | Hex, rgb, hsl and oklch, plus WCAG contrast rated separately against white and black. |
 | **Number bases** | Decimal, hex, binary and octal via BigInt, with the two's-complement reading at 8/16/32/64 bits. |
 | **Image to SVG** | Traces a picture into real vector paths, or wraps it unchanged when that is what you need. |
-| **Image formats** | PNG, JPEG and WebP with a quality setting, resizing, and data-URI output. |
+| **Image formats** | PNG, JPEG and WebP with a quality setting, resizing, and data-URI output. Takes an SVG in too, rasterised at a size you choose. |
 | **YAML & JSON** | Both directions, over a documented subset of YAML. |
 | **Regex tester** | Match highlighting, numbered and named capture groups, flags, and a replacement preview. |
 | **Compare text** | Line-by-line comparison with an added/removed view or a unified diff. |
@@ -76,6 +76,14 @@ stored — a JWT or a secret you paste lives in the tab and disappears with it.
 **Logic is separated from the DOM.** `src/tools/` holds pure functions that take
 strings and return a `Result<T>`; `src/panels/` wires them to the interface.
 That is why the tests cover behaviour rather than markup.
+
+**An SVG has no pixels until something picks a number.** It may state a width
+and height, or only a viewBox giving its proportions, or neither — and a width
+in percent is a share of something else, not a size. `src/tools/svg.ts` reports
+what the file actually specifies; the panel names the long edge and the file's
+proportions do the rest. Drawing goes through an `<img>` rather than
+`createImageBitmap`, which cannot decode SVG in every browser, and an SVG loaded
+as an image runs no scripts and fetches nothing.
 
 **Two tools state their limits rather than guessing.** The YAML reader handles
 block and flow collections, quoted and plain scalars, comments and the `|`/`>`
