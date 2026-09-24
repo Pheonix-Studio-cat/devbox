@@ -37,7 +37,7 @@ static files.
 | **YAML & JSON** | Both directions, over a documented subset of YAML. |
 | **Regex tester** | Match highlighting, numbered and named capture groups, flags, and a replacement preview. |
 | **Compare text** | Line-by-line comparison with an added/removed view or a unified diff. |
-| **QR codes** | Byte-mode codes up to version 10, all four correction levels, as scalable SVG — with an optional icon in the middle from a library of 28. |
+| **QR codes** | Byte-mode codes up to version 10, all four correction levels, as scalable SVG — with an optional icon in the middle from a library of 46, music notation and instruments included. |
 
 Images are read with the canvas API and never leave the tab either — drop one
 on the panel, or paste it from the clipboard.

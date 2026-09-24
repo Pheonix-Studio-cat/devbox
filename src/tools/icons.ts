@@ -131,6 +131,161 @@ export const ICONS: readonly Icon[] = [
       `<rect x="17" y="14.2" width="4.6" height="7" rx="2.3" fill="currentColor"/>`,
   },
   {
+    id: "treble-clef",
+    label: "Treble clef",
+    body:
+      `<path d="M13.9 2.2C11.3 4.6 9.7 7 9.7 9.8c0 2.7 1.7 4.7 3.2 6.6 1.4 1.7 2.3 3 2.3 4.5 ` +
+      `0 1.7-1.3 2.8-2.8 2.5-1.3-.3-1.9-1.5-1.3-2.4.5-.8 1.7-.9 2.3-.2" ${stroke(1.7)}/>` +
+      `<path d="M13.9 2.2c1.7 1.5 2.4 3.6 2 5.9-.5 3.2-3.3 5.2-6 6.4-2.4 1.1-4 2.5-4 4.6 ` +
+      `0 2.2 1.9 3.7 4.2 3.7" ${stroke(1.7)}/>`,
+  },
+  {
+    id: "bass-clef",
+    label: "Bass clef",
+    body:
+      `<path d="M7.2 8.6c1.8-2.6 6.2-2.4 6.6 1.6.5 4.8-4 8.4-7.6 10.2" ${stroke(1.9)}/>` +
+      `<circle cx="7.6" cy="8.4" r="1.6" fill="currentColor"/>` +
+      `<circle cx="17.4" cy="8.4" r="1.1" fill="currentColor"/>` +
+      `<circle cx="17.4" cy="12.2" r="1.1" fill="currentColor"/>`,
+  },
+  {
+    id: "note-eighth",
+    label: "Eighth note",
+    body:
+      `<path d="M10.2 18V3.6c3.4 1.1 6 2.9 6 6.2" ${stroke(2)}/>` +
+      `<ellipse cx="7" cy="18" rx="3.3" ry="2.7" fill="currentColor"/>`,
+  },
+  {
+    id: "note-quarter",
+    label: "Quarter note",
+    body:
+      `<path d="M10.2 18V3.6" ${stroke(2.2)}/>` +
+      `<ellipse cx="7" cy="18" rx="3.3" ry="2.7" fill="currentColor"/>`,
+  },
+  {
+    id: "sharp",
+    label: "Sharp sign",
+    body:
+      `<path d="M9.2 3.6v15.6M15 2.6v15.6" ${stroke(1.9)}/>` +
+      `<path d="M5.6 9.6l12.8-2.6M5.6 15.2l12.8-2.6" ${stroke(1.9)}/>`,
+  },
+  {
+    id: "guitar",
+    label: "Guitar",
+    body:
+      `<path d="M15 3.4l4.2-1.2 1.2 4.2-3.4 3.2" ${stroke(1.8)}/>` +
+      `<path d="M17 9.6l-3.4 3.2" ${stroke(1.8)}/>` +
+      `<circle cx="8.8" cy="16.8" r="5.4" ${stroke(1.8)}/>` +
+      `<circle cx="12.6" cy="12.4" r="3.6" ${stroke(1.8)}/>` +
+      `<circle cx="10.4" cy="14.8" r="1.4" fill="currentColor"/>`,
+  },
+  {
+    id: "piano",
+    label: "Piano keys",
+    body:
+      `<rect x="2.4" y="5.6" width="19.2" height="12.8" rx="1.8" ${stroke(1.9)}/>` +
+      `<path d="M7.2 5.6v12.8M12 5.6v12.8M16.8 5.6v12.8" ${stroke(1.5)}/>` +
+      `<rect x="5.5" y="5.6" width="2.4" height="7" fill="currentColor"/>` +
+      `<rect x="10.3" y="5.6" width="2.4" height="7" fill="currentColor"/>` +
+      `<rect x="15.1" y="5.6" width="2.4" height="7" fill="currentColor"/>`,
+  },
+  {
+    id: "drum",
+    label: "Drum",
+    body:
+      `<ellipse cx="12" cy="8.4" rx="8.4" ry="3.2" ${stroke(1.8)}/>` +
+      `<path d="M3.6 8.4v5.4c0 1.8 3.8 3.2 8.4 3.2s8.4-1.4 8.4-3.2V8.4" ${stroke(1.8)}/>` +
+      `<path d="M5.4 10.2l3.4 5.6M18.6 10.2l-3.4 5.6M12 11.6v5.4" ${stroke(1.3)}/>` +
+      `<path d="M5.2 22l4.2-5M18.8 22l-4.2-5" ${stroke(1.8)}/>`,
+  },
+  {
+    id: "saxophone",
+    label: "Saxophone",
+    body:
+      `<path d="M8.4 2.4v9.8c0 4.8 2.8 8.2 7 8.2" ${stroke(2)}/>` +
+      `<path d="M14.6 17.2l6.8-2.6 1.2 5-6.6 2.2z" fill="currentColor"/>` +
+      `<path d="M7 2.4h2.8" ${stroke(2)}/>` +
+      `<circle cx="9.9" cy="8.8" r="0.95" fill="currentColor"/>` +
+      `<circle cx="10.5" cy="12.4" r="0.95" fill="currentColor"/>` +
+      `<circle cx="12" cy="15.6" r="0.95" fill="currentColor"/>`,
+  },
+  {
+    id: "trumpet",
+    label: "Trumpet",
+    body:
+      `<path d="M3 12.8h12" ${stroke(2)}/>` +
+      `<path d="M2.6 10.6v4.4" ${stroke(2)}/>` +
+      `<path d="M15 8.2c3.2 0 6.4 1.8 6.4 4.6s-3.2 4.6-6.4 4.6z" fill="currentColor"/>` +
+      `<path d="M7 12.8V8.8M10 12.8V8.8M13 12.8V8.8" ${stroke(1.7)}/>` +
+      `<circle cx="7" cy="7.9" r="1" fill="currentColor"/>` +
+      `<circle cx="10" cy="7.9" r="1" fill="currentColor"/>` +
+      `<circle cx="13" cy="7.9" r="1" fill="currentColor"/>`,
+  },
+  {
+    id: "violin",
+    label: "Violin",
+    body:
+      `<path d="M12 8.2c2.8 0 4.5 1.9 4.5 3.9 0 1.7-2.1 2.3-2.1 3.5 0 1.5 2.7 2.4 2.7 4.5 ` +
+      `0 1.9-2.3 2.8-5.1 2.8s-5.1-.9-5.1-2.8c0-2.1 2.7-3 2.7-4.5 0-1.2-2.1-1.8-2.1-3.5 ` +
+      `0-2 1.7-3.9 4.5-3.9z" ${stroke(1.8)}/>` +
+      `<path d="M12 8.4V3.4" ${stroke(1.8)}/>` +
+      `<circle cx="11" cy="2.5" r="1.5" ${stroke(1.5)}/>` +
+      `<path d="M10.3 16.4c-.6 1.2-.6 2.2 0 3.2M13.7 16.4c.6 1.2.6 2.2 0 3.2" ${stroke(1.2)}/>`,
+  },
+  {
+    id: "microphone",
+    label: "Microphone",
+    body:
+      `<rect x="9" y="2.4" width="6" height="11.4" rx="3" ${stroke(1.9)}/>` +
+      `<path d="M5.4 11.8a6.6 6.6 0 0 0 13.2 0" ${stroke(1.9)}/>` +
+      `<path d="M12 18.4v3.2M8.6 21.6h6.8" ${stroke(1.9)}/>`,
+  },
+  {
+    id: "speaker",
+    label: "Loudspeaker",
+    body:
+      `<rect x="5" y="2.4" width="14" height="19.2" rx="2.2" ${stroke(1.9)}/>` +
+      `<circle cx="12" cy="15.2" r="4" ${stroke(1.7)}/>` +
+      `<circle cx="12" cy="7" r="1.8" ${stroke(1.7)}/>`,
+  },
+  {
+    id: "vinyl",
+    label: "Vinyl record",
+    body:
+      `<circle cx="12" cy="12" r="9.4" ${stroke(1.9)}/>` +
+      `<circle cx="12" cy="12" r="4.6" ${stroke(1.5)}/>` +
+      `<circle cx="12" cy="12" r="1.5" fill="currentColor"/>`,
+  },
+  {
+    id: "cassette",
+    label: "Cassette",
+    body:
+      `<rect x="2.4" y="5" width="19.2" height="14" rx="2.2" ${stroke(1.9)}/>` +
+      `<circle cx="8.6" cy="11" r="2.2" ${stroke(1.6)}/>` +
+      `<circle cx="15.4" cy="11" r="2.2" ${stroke(1.6)}/>` +
+      `<path d="M7 19l1.6-3.2h6.8l1.6 3.2" ${stroke(1.6)}/>`,
+  },
+  {
+    id: "metronome",
+    label: "Metronome",
+    body:
+      `<path d="M9.2 3.4h5.6l4.4 18H4.8z" ${stroke(1.9)}/>` +
+      `<path d="M11.8 18.4L15.6 7.2" ${stroke(1.7)}/>` +
+      `<circle cx="15.2" cy="8.6" r="1.4" fill="currentColor"/>`,
+  },
+  {
+    id: "tuning-fork",
+    label: "Tuning fork",
+    body:
+      `<path d="M8 2.6v8.2a4 4 0 0 0 8 0V2.6" ${stroke(1.9)}/>` +
+      `<path d="M12 14.8v6.6" ${stroke(1.9)}/>`,
+  },
+  {
+    id: "equalizer",
+    label: "Equalizer",
+    body: `<path d="M4.8 16.4V7.6M9.6 20V4M14.4 17.6V6.4M19.2 13.6v-3.2" ${stroke(2.4)}/>`,
+  },
+  {
     id: "bolt",
     label: "Lightning",
     body: `<path d="M13.6 1.8L4 13.8h6L9.4 22.2 20 10.2h-6.6z" fill="currentColor"/>`,

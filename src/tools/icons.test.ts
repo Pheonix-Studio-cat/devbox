@@ -7,7 +7,18 @@ describe("the icon library", () => {
   });
 
   it("offers a broad spread to choose from", () => {
-    expect(ICONS.length).toBeGreaterThanOrEqual(24);
+    expect(ICONS.length).toBeGreaterThanOrEqual(40);
+  });
+
+  it("covers music properly, not just a single note", () => {
+    for (const id of [
+      "treble-clef", "bass-clef", "note-eighth", "note-quarter", "sharp",
+      "guitar", "violin", "piano", "drum", "saxophone", "trumpet",
+      "microphone", "speaker", "vinyl", "cassette", "metronome",
+      "tuning-fork", "equalizer",
+    ]) {
+      expect(findIcon(id), id).toBeDefined();
+    }
   });
 
   it("gives every icon a unique id and a readable label", () => {
