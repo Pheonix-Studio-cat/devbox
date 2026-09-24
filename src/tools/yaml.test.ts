@@ -15,8 +15,8 @@ const toYaml = (json: string): string => {
 
 describe("parseYaml", () => {
   it("reads a flat mapping", () => {
-    expect(parse("name: devbox\ntools: 16\noffline: true")).toEqual({
-      name: "devbox",
+    expect(parse("name: devhelper\ntools: 16\noffline: true")).toEqual({
+      name: "devhelper",
       tools: 16,
       offline: true,
     });
@@ -111,7 +111,7 @@ describe("parseYaml", () => {
 
 describe("jsonToYaml", () => {
   it("writes a flat object", () => {
-    expect(toYaml('{"name":"devbox","tools":16}')).toBe("name: devbox\ntools: 16");
+    expect(toYaml('{"name":"devhelper","tools":16}')).toBe("name: devhelper\ntools: 16");
   });
 
   it("writes nested objects with indentation", () => {
@@ -141,7 +141,7 @@ describe("jsonToYaml", () => {
 
 describe("round trip", () => {
   it.each([
-    '{"name":"devbox","tools":16,"offline":true}',
+    '{"name":"devhelper","tools":16,"offline":true}',
     '{"server":{"host":"localhost","port":8080},"tags":["a","b"]}',
     '{"list":[{"id":1,"name":"one"},{"id":2,"name":"two"}]}',
     '{"empty":null,"quoted":"123"}',

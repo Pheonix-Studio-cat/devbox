@@ -1,6 +1,6 @@
-# Devbox MCP server
+# Devhelper MCP server
 
-Devbox's tools as a remote [MCP](https://modelcontextprotocol.io) server on
+Devhelper's tools as a remote [MCP](https://modelcontextprotocol.io) server on
 Cloudflare Workers, so an AI assistant can use them directly instead of
 guessing at JSON structure or hand-rolling a base64 decode.
 
@@ -18,7 +18,7 @@ this implementation.
 
 That is an acceptable trade in the case this is built for — an assistant that
 is already holding your data in its context — and a bad one if you were
-reaching for Devbox precisely because you did not want a server involved. For
+reaching for Devhelper precisely because you did not want a server involved. For
 that, use the app.
 
 What is done to keep the exposure small:
@@ -48,7 +48,7 @@ npm run deploy
 Wrangler prints the URL. The MCP endpoint is that URL plus `/mcp`:
 
 ```
-https://devbox-mcp.<your-subdomain>.workers.dev/mcp
+https://devhelper-mcp.<your-subdomain>.workers.dev/mcp
 ```
 
 Change `name` in `wrangler.jsonc` to change the first part of that address.
@@ -79,9 +79,9 @@ local servers, proxy it:
 ```json
 {
   "mcpServers": {
-    "devbox": {
+    "devhelper": {
       "command": "npx",
-      "args": ["-y", "mcp-remote@latest", "https://devbox-mcp.<your-subdomain>.workers.dev/mcp"]
+      "args": ["-y", "mcp-remote@latest", "https://devhelper-mcp.<your-subdomain>.workers.dev/mcp"]
     }
   }
 }
@@ -109,7 +109,7 @@ panel has several modes.
 | `diff` | `unified`, `stats`, `changes` |
 | `qr` | text to a scalable SVG, correction levels L/M/Q/H |
 
-They are grouped one-per-panel rather than one-per-function on purpose. Devbox
+They are grouped one-per-panel rather than one-per-function on purpose. Devhelper
 exports roughly fifty operations; advertising each as its own MCP tool would
 spend a large share of a model's context on tool definitions before any work
 started.

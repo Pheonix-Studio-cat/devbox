@@ -35,7 +35,7 @@ describe("hashText", () => {
       "SHA-512": 128,
     };
     for (const algorithm of HASH_ALGORITHMS) {
-      const result = await hashText("devbox", algorithm);
+      const result = await hashText("devhelper", algorithm);
       expect(result.ok && result.value.length).toBe(lengths[algorithm]);
     }
   });

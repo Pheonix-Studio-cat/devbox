@@ -1,12 +1,12 @@
 /**
- * Devbox as a remote MCP server.
+ * Devhelper as a remote MCP server.
  *
  * Every tool here delegates to the same functions in `src/tools/` that the web
  * app calls. Nothing is reimplemented: the panels and this server are two front
  * ends over one library, so a fix in the library reaches both.
  *
  * Tools are grouped one-per-panel with an `operation` parameter rather than
- * split into one tool per function. Devbox has roughly fifty exported
+ * split into one tool per function. Devhelper has roughly fifty exported
  * operations; advertising each as its own MCP tool would spend a large share of
  * a model's context on tool definitions before any work started.
  */
@@ -22,7 +22,17 @@ import { HASH_ALGORITHMS, hashAll, hashText } from "../../src/tools/hash";
 import { formatJson, inspectJson, minifyJson, sortJsonKeys } from "../../src/tools/json";
 import { decodeJwt } from "../../src/tools/jwt";
 import { BIT_WIDTHS, describeNumber, parseNumber } from "../../src/tools/numbers";
-import { EC_LEVELS, encodeQr, qrToSvg } from "../../src/tools/qr";
+import {
+  assessLogo,
+  EC_LEVELS,
+  encodeQr,
+  largestSafeCoverage,
+  qrToPng,
+  qrToSvg,
+} from "../../src/tools/qr";
+import { toBase64 } from "../../src/tools/png";
+import { landingPage } from "./landing";
+import { ICON_IDS, findIcon } from "../../src/tools/icons";
 import { generateMany, randomToken, uuidV4 } from "../../src/tools/random";
 import { findMatches, replaceMatches } from "../../src/tools/regex";
 import type { Result } from "../../src/tools/result";
@@ -30,11 +40,35 @@ import { describeTimestamp, parseTimestamp } from "../../src/tools/timestamp";
 import { buildQuery, decodeUrl, encodeUrl, parseUrl } from "../../src/tools/url";
 import { jsonToYaml, yamlToJson } from "../../src/tools/yaml";
 
+type TextContent = { type: "text"; text: string };
+type ImageContent = { type: "image"; data: string; mimeType: string };
+
 type ToolResult = {
-  content: Array<{ type: "text"; text: string }>;
+  content: Array<TextContent | ImageContent>;
   structuredContent?: Record<string, unknown>;
   isError?: boolean;
 };
+
+/**
+ * A picture the caller's chat window will actually display.
+ *
+ * Clients render an image block; they do not render an SVG string, which
+ * arrives as a wall of path data. Anything worth looking at goes back as PNG,
+ * with the exact SVG alongside for whoever wants the sharp version.
+ */
+function imageResult(
+  png: Uint8Array,
+  caption: string,
+  structured?: Record<string, unknown>,
+): ToolResult {
+  return {
+    content: [
+      { type: "image", data: toBase64(png), mimeType: "image/png" },
+      { type: "text", text: caption },
+    ],
+    ...(structured ? { structuredContent: structured } : {}),
+  };
+}
 
 /** A failed tool reports the library's own message rather than throwing. */
 function failure(message: string): ToolResult {
@@ -60,7 +94,7 @@ function objectResult(value: Record<string, unknown>): ToolResult {
 }
 
 function createServer() {
-  const server = new McpServer({ name: "devbox", version: "0.1.0" });
+  const server = new McpServer({ name: "devhelper", version: "0.1.0" });
 
   // -- JSON ---------------------------------------------------------------
   server.registerTool(
@@ -399,19 +433,86 @@ function createServer() {
       description:
         "Encodes text as a byte-mode QR code up to version 10 and returns it as a scalable SVG. " +
         "Higher correction levels survive more damage but hold less data: L about 7 percent, " +
-        "M 15, Q 25, H 30.",
+        "M 15, Q 25, H 30. An optional icon can sit in the middle; it covers modules, so the " +
+        "result reports how much of the error correction that spends and refuses a logo the " +
+        "code could not survive. Use level H for anything with a logo.",
       inputSchema: {
         text: z.string().describe("What the code should carry"),
         ecLevel: z.enum(EC_LEVELS).optional().describe("Error correction, default M"),
         scale: z.number().int().min(1).max(32).optional().describe("Pixels per module, default 8"),
         quietZone: z.number().int().min(0).max(16).optional().describe("Margin in modules, default 4"),
+        logo: z
+          .enum(ICON_IDS as [string, ...string[]])
+          .optional()
+          .describe("Icon for the middle of the code; omit for a plain code"),
+        logoCoverage: z
+          .number()
+          .min(0.05)
+          .max(0.4)
+          .optional()
+          .describe("Fraction of the code's width the icon covers, default 0.2"),
+        logoShape: z
+          .enum(["circle", "square", "none"])
+          .optional()
+          .describe("Plate behind the icon, default circle"),
+        logoColor: z.string().optional().describe("Icon colour, default the code's dark colour"),
       },
     },
-    async ({ text, ecLevel, scale, quietZone }) => {
+    async ({ text, ecLevel, scale, quietZone, logo, logoCoverage, logoShape, logoColor }) => {
       const code = encodeQr(text, ecLevel ?? "M");
       if (!code.ok) return failure(code.error);
-      const svg = qrToSvg(code.value, { scale: scale ?? 8, quietZone: quietZone ?? 4 });
-      return textResult(svg, { version: code.value.version, ecLevel: code.value.ecLevel, size: code.value.size, svg });
+
+      const options: Parameters<typeof qrToSvg>[1] = {
+        scale: scale ?? 8,
+        quietZone: quietZone ?? 4,
+      };
+      let damage;
+
+      if (logo) {
+        const icon = findIcon(logo);
+        if (!icon) return failure(`No icon called "${logo}". Available: ${ICON_IDS.join(", ")}.`);
+
+        const coverage = logoCoverage ?? 0.2;
+        damage = assessLogo(code.value, coverage);
+        if (!damage.readable) {
+          const largest = largestSafeCoverage(code.value);
+          return failure(
+            `A logo covering ${Math.round(coverage * 100)}% would corrupt ${damage.worstBlock} ` +
+              `codewords in one block, and only ${damage.capacityPerBlock} can be repaired, so ` +
+              `the code would not scan. Use at most ${Math.round(largest * 100)}% at level ` +
+              `${code.value.ecLevel}, or switch to level H.`,
+          );
+        }
+
+        options.logo = {
+          body: icon.body,
+          coverage,
+          shape: logoShape ?? "circle",
+          ...(logoColor ? { color: logoColor } : {}),
+        };
+      }
+
+      const svg = qrToSvg(code.value, options);
+      const png = await qrToPng(code.value, options);
+
+      const caption =
+        `QR code, version ${code.value.version} (${code.value.size}×${code.value.size} modules), ` +
+        `correction level ${code.value.ecLevel}.` +
+        (damage
+          ? ` The icon covers ${damage.coveredModules} modules and spends ` +
+            `${damage.worstBlock} of the ${damage.capacityPerBlock} repairs available in the ` +
+            `worst block, leaving ${damage.headroom}.`
+          : "") +
+        "\n\nThe SVG below is the same code, sharp at any size:\n\n" +
+        svg;
+
+      return imageResult(png, caption, {
+        version: code.value.version,
+        ecLevel: code.value.ecLevel,
+        size: code.value.size,
+        ...(damage ? { logoDamage: damage } : {}),
+        svg,
+      });
     },
   );
 
@@ -424,10 +525,9 @@ export default {
   fetch(request: Request, env: unknown, ctx: ExecutionContext) {
     const url = new URL(request.url);
     if (url.pathname === "/") {
-      return new Response(
-        `Devbox MCP server.\n\nEndpoint: ${url.origin}/mcp\nThe app itself: https://pheonix-studio-cat.github.io/devbox/\n`,
-        { headers: { "content-type": "text/plain; charset=utf-8" } },
-      );
+      return new Response(landingPage(url.origin), {
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
     }
     return handler(request, env, ctx);
   },

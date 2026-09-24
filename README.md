@@ -1,11 +1,11 @@
-# Devbox
+# Devhelper
 
 Everyday developer tools that run entirely in your browser tab. JSON, YAML, CSV,
 Base64, URLs, JWTs, regular expressions, text comparison, hashes, UUIDs,
 timestamps, colours, number bases, QR codes and image conversion — computed
 locally, with no server involved.
 
-![Devbox](docs/screenshot.png)
+![Devhelper](docs/screenshot.png)
 
 ## Why
 
@@ -13,7 +13,7 @@ The tools in here are the ones you reach for a dozen times a week, and the
 usual answer is to paste your data into a random website. That website sees
 your production JSON, your access token, and the payload you were debugging.
 
-Devbox does the same work with the same convenience, except the page is static:
+Devhelper does the same work with the same convenience, except the page is static:
 it makes no network requests after loading, so nothing you paste can leave the
 tab. Once loaded it works offline, and it deploys anywhere that can serve three
 static files.
@@ -37,7 +37,7 @@ static files.
 | **YAML & JSON** | Both directions, over a documented subset of YAML. |
 | **Regex tester** | Match highlighting, numbered and named capture groups, flags, and a replacement preview. |
 | **Compare text** | Line-by-line comparison with an added/removed view or a unified diff. |
-| **QR codes** | Byte-mode codes up to version 10, all four correction levels, as scalable SVG. |
+| **QR codes** | Byte-mode codes up to version 10, all four correction levels, as scalable SVG — with an optional icon in the middle from a library of 28. |
 
 Images are read with the canvas API and never leave the tab either — drop one
 on the panel, or paste it from the clipboard.
@@ -85,6 +85,20 @@ The regex tester runs matching on the page's own thread, so a pattern that
 backtracks catastrophically can freeze the tab; the panel says so, and the text
 is capped.
 
+**A logo in the middle is measured, not guessed at.** An icon covers modules,
+and every covered module corrupts the whole codeword it belongs to.
+Reed–Solomon repairs up to half of a block's parity codewords, so the worst-hit
+block decides whether the code still scans. `assessLogo` walks the covered area,
+maps each module back to its codeword and block, and reports how many repairs
+the icon spends against how many exist — which is the arithmetic behind the
+usual "keep it under 30%" folklore, done properly. The panel refuses a logo the
+code could not survive and names the largest that fits.
+
+That prediction was checked the only way worth checking it: 51 real SVGs
+rendered in a real browser and read back by an independent decoder. Every code
+the report called readable was read; the two that failed had both been flagged
+as risky first.
+
 **The QR encoder was checked against an independent implementation.** Every
 code it produces for the project's test cases is identical, module for module,
 to the one a reference encoder produces, and decodes back to the original text
@@ -100,7 +114,7 @@ panel says so on screen.
 ## Deployment
 
 The build is a static bundle, so any static host works. `vite.config.ts`
-defaults `base` to `/devbox/` for GitHub Pages project sites; override it
+defaults `base` to `/devhelper/` for GitHub Pages project sites; override it
 when deploying elsewhere:
 
 ```bash
@@ -147,6 +161,17 @@ format your JSON or decode your JWT itself rather than approximating it. It
 deploys to Cloudflare Workers and is entirely separate from the app: it is its
 own npm package, so installing or building the site never pulls in its
 dependencies, and the site ships exactly as it did before.
+
+Results come back as something an assistant can show. A chat window displays an
+image block and does not display an SVG string, which arrives as a wall of path
+data — so the QR tool returns a PNG, rendered without any image library by
+`src/tools/png.ts` and `src/tools/raster.ts`, with the exact SVG alongside. That
+renderer is checked against a browser's rendering of the same SVG, which agrees
+to within a fifth of a percent of pixels.
+
+Opening the address in a browser shows a page rather than a bare string: what
+the server is, the endpoint to paste into a client, and what each tool does.
+[CLAUDE.md](CLAUDE.md) records the convention for anything added later.
 
 Be aware that it trades away the property the app is built on. A tool call is a
 network request, so input sent to the MCP server does leave your machine — see

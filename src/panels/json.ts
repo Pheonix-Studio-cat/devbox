@@ -2,7 +2,7 @@ import { formatJson, inspectJson, minifyJson, sortJsonKeys } from "../tools/json
 import { action, createWorkbench, number, pairs } from "../workbench";
 import type { Panel } from "./types";
 
-const SAMPLE = '{"name":"devbox","tools":7,"offline":true,"tags":["json","base64"],"meta":{"license":"Apache-2.0"}}';
+const SAMPLE = '{"name":"devhelper","tools":7,"offline":true,"tags":["json","base64"],"meta":{"license":"Apache-2.0"}}';
 
 export const jsonPanel: Panel = {
   id: "json",

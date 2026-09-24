@@ -2,7 +2,7 @@ import "./styles.css";
 import { clear, el } from "./dom";
 import { PANELS, type Panel } from "./panels";
 
-const STORAGE_KEY = "devbox:active-panel";
+const STORAGE_KEY = "devhelper:active-panel";
 
 function rememberPanel(id: string): void {
   try {
@@ -84,7 +84,7 @@ function mount(): void {
   const header = el(
     "header",
     { class: "masthead" },
-    el("h1", {}, "Devbox"),
+    el("h1", {}, "Devhelper"),
     el(
       "p",
       {},

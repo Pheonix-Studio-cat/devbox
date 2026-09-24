@@ -9,10 +9,10 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   root: "app",
   publicDir: "../public",
-  // `base` is set for project-page hosting on GitHub Pages
-  // (https://<user>.github.io/<repo>/). Override with BASE_PATH when
-  // deploying anywhere else, e.g. BASE_PATH=/ npm run build.
-  base: process.env.BASE_PATH ?? "/devbox/",
+  // Relative asset URLs, so the build works at any path: the repository root,
+  // a GitHub Pages project page, a subfolder. Hard-coding the repository name
+  // here meant renaming the repository broke every asset.
+  base: process.env.BASE_PATH ?? "./",
   build: {
     target: "es2022",
     outDir: "../dist",

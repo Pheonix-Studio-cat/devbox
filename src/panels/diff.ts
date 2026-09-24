@@ -4,11 +4,11 @@ import { action, createDualWorkbench, number, pairs, toggle } from "../workbench
 import type { Panel } from "./types";
 
 const SAMPLE: readonly [string, string] = [
-  `name: devbox
+  `name: devhelper
 tools: 12
 offline: true
 license: Apache-2.0`,
-  `name: devbox
+  `name: devhelper
 tools: 16
 offline: true
 tracking: none
